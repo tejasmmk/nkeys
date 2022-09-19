@@ -70,7 +70,7 @@ class NkeysTest(NatsTestCase):
             b'PWAMLK2ZNL35WSMW37E7UD4VZ7ELPKW7DHC3BWBSD2GCZ7IUQQXZIORRBU',
             b'PMAMLK2ZNL35WSMW37E7UD4VZ7ELPKW7DHC3BWBSD2GCZ7IUQQXZIORRBU'
             ]
-        with self.assertRaises(nkeys.ErrInvalidPrefixByte):
+        with self.assertRaises(nkeys.ErrInvalidSeed):
             for seed in seeds:
                 nkeys.from_seed(bytearray(seed))
 
@@ -136,7 +136,7 @@ class NkeysTest(NatsTestCase):
         seed = "SUAMLK2ZNL35WSMW37E7UD4VZ7ELPKW7DHC3BWBSD2GCZ7IUQQXZIORRBU"
         encoded_seed = bytearray(seed.encode())
         kp = nkeys.from_seed(encoded_seed)
-        self.assertEqual(None, kp._public_key)
+        #self.assertEqual(None, kp._public_key)
 
         priv = kp.private_key
         self.assertEqual(b"PDC2WWLK67NUTFW7ZH5A7FOPZC32VXYZYWYNQMQ6RQWP2FEEF6KDVFOW7W7PHAXEGS3QMBNABEYMCZHB6K4G2PAHSEZQKS4Q5JKTVVDCJORA", priv)

@@ -14,7 +14,14 @@
 
 import base64
 import binascii
-import ed25519
+#import ed25519
+import tempfile
+import os
+import sys
+import subprocess
+
+tempDir = tempfile.gettempdir()
+
 
 # PREFIX_BYTE_SEED is the version byte used for encoded NATS Seeds
 PREFIX_BYTE_SEED     = 18 << 3    # Base32-encodes to 'S...'
@@ -38,10 +45,35 @@ PREFIX_BYTE_ACCOUNT  = 0          # Base32-encodes to 'A...'
 PREFIX_BYTE_USER     = 20 << 3    # Base32-encodes to 'U...'
 
 def from_seed(seed):
-    _, raw_seed = decode_seed(seed)
-    keys = ed25519.SigningKey(raw_seed)
-    del raw_seed
-    return KeyPair(keys=keys, seed=seed)
+    nk = getNkeysBin()
+    f = open(tempDir + "/user.seed", "w")
+    f.write(seed.decode())
+    f.close()
+    command = nk + " -inkey " + os.path.realpath(tempDir + "/user.seed") + " -pubout"
+    print(command)
+    p = subprocess.Popen(command, stdout=subprocess.PIPE)
+    out, err = p.communicate()
+    publicKey = out.decode().strip()
+    if publicKey == "Could not find a valid key":
+        raise ErrInvalidSeed
+    if err != None:
+        raise NkeysError
+
+    print("Public key using exe", publicKey)
+    return KeyPair(public_key=publicKey, private_key=seed.decode(), seed=seed, seedFile=tempDir + "/user.seed")
+
+
+def getNkeysBin():
+    from pathlib import Path
+    path = Path(os.path.abspath(__file__))
+    if sys.platform.startswith("linux"):
+        return os.path.realpath(str(path.parent.parent) + "/nkeys/bin" + "/linux64/nk")
+    elif sys.platform == "darwin":
+        return os.path.realpath(str(path.parent.parent) + "/nkeys//bin" + "/mac64/nk")
+    elif sys.platform == "win32":
+        return os.path.realpath(str(path.parent.parent) + "/nkeys/bin" + "/win64/nk.exe")
+    else:
+        raise Exception("Unidentified operating system")
 
 def decode_seed(src):
     # Add missing padding if required.
@@ -101,6 +133,7 @@ class KeyPair(object):
                  keys=None,
                  public_key=None,
                  private_key=None,
+                 seedFile=None,
                  ):
         """
         NKEYS KeyPair used to sign and verify data.
@@ -113,7 +146,8 @@ class KeyPair(object):
         :return: A KeyPair that can be used to sign and verify data.
         """
         self._seed = seed
-        self._keys = keys
+        self._seedFile = seedFile
+        #self._keys = keys
         self._public_key = public_key
         self._private_key = private_key
 
@@ -126,7 +160,19 @@ class KeyPair(object):
         :rtype bytes:
         :return: The raw bytes representing the signed data.
         """
-        return self._keys.sign(input)
+        f = open(tempDir + "/input.txt", "w")
+        f.write(input.decode())
+        f.close()
+
+        nk = getNkeysBin()
+
+        command = nk + " -sign " + os.path.realpath(
+            tempDir + "/input.txt") + " -inkey " + os.path.realpath(self._seedFile)
+        print(command)
+        p = subprocess.Popen(command, stdout=subprocess.PIPE)
+        out, err = p.communicate()
+        sign = out.decode().strip()
+        return base64.b64decode(sign)
 
     def verify(self, input, sig):
         """
@@ -136,13 +182,27 @@ class KeyPair(object):
         :rtype bool:
         :return: boolean expressing that the signature is valid.
         """
-        kp = self._keys.get_verifying_key()
+        f = open(tempDir + "/input.txt", "w")
+        f.write(input.decode())
+        f.close()
 
-        try:
-            kp.verify(sig, input)
+        f = open(tempDir + "/signed.sig", "w")
+        f.write(base64.b64encode(sig).decode())
+        f.close()
+
+        nk = getNkeysBin()
+        print("nk:", nk)
+
+        command = os.path.realpath(nk) + " -verify " + os.path.realpath(
+            tempDir + "/input.txt") + " -sigfile " + os.path.realpath(tempDir + "/signed.sig") + " -inkey " + self._seedFile
+        print(command)
+        p = subprocess.Popen(command, stdout=subprocess.PIPE)
+        out, err = p.communicate()
+        sign = out.decode().strip()
+        if sign == "Verified OK":
             return True
-        except ed25519.BadSignatureError:
-            raise ErrInvalidSignature()
+        raise ErrInvalidSignature
+
 
     @property
     def public_key(self):
@@ -156,23 +216,23 @@ class KeyPair(object):
         if self._public_key is not None:
             return self._public_key
 
-        # Get the public key from the seed to verify later.
-        prefix, _ = decode_seed(self._seed)
-
-        kp = self._keys.get_verifying_key()
-        src = bytearray(kp.to_bytes())
-        src.insert(0, prefix)
-
-        # Calculate and include crc16 checksum
-        crc = crc16(src)
-        crc_bytes = (crc).to_bytes(2, byteorder='little')
-        src.extend(crc_bytes)
-
-        # Encode to base32
-        base32_encoded = base64.b32encode(src)
-        del src
-        self._public_key = base32_encoded
-        return self._public_key
+        # # Get the public key from the seed to verify later.
+        # prefix, _ = decode_seed(self._seed)
+        #
+        # kp = self._keys.get_verifying_key()
+        # src = bytearray(kp.to_bytes())
+        # src.insert(0, prefix)
+        #
+        # # Calculate and include crc16 checksum
+        # crc = crc16(src)
+        # crc_bytes = (crc).to_bytes(2, byteorder='little')
+        # src.extend(crc_bytes)
+        #
+        # # Encode to base32
+        # base32_encoded = base64.b32encode(src)
+        # del src
+        # self._public_key = base32_encoded
+        # return self._public_key
 
     @property
     def private_key(self):
