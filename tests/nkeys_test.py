@@ -125,7 +125,7 @@ class NkeysTest(NatsTestCase):
         kp = nkeys.from_seed(encoded_seed)
 
         #self.assertEqual(None, kp._public_key)
-        self.assertEqual("UCK5N7N66OBOINFXAYC2ACJQYFSOD4VYNU6APEJTAVFZB2SVHLKGEW7L", kp.public_key)
+        self.assertEqual(b"UCK5N7N66OBOINFXAYC2ACJQYFSOD4VYNU6APEJTAVFZB2SVHLKGEW7L", kp.public_key)
 
         # Confirm that the public key is wiped as well.
         kp.wipe()

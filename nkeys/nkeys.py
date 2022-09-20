@@ -217,7 +217,7 @@ class KeyPair(object):
         """
         # If already generated then just return.
         if self._public_key is not None:
-            return self._public_key
+            return bytes(self._public_key,'utf-8')
 
         # # Get the public key from the seed to verify later.
         # prefix, _ = decode_seed(self._seed)
