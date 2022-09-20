@@ -47,9 +47,9 @@ PREFIX_BYTE_USER     = 20 << 3    # Base32-encodes to 'U...'
 
 def from_seed(seed):
     nk = getNkeysBin()
-    filepath = writeToFile("user.seed", seed.decode())
-    command = nk + " -inkey " + filepath + " -pubout"
-    print(command)
+    #filepath = writeToFile("user.seed", seed.decode())
+    command = nk + " -inkey " + seed.decode() + " -pubout"
+
     p = subprocess.Popen(command, stdout=subprocess.PIPE)
     out, err = p.communicate()
     publicKey = out.decode().strip()
@@ -58,9 +58,9 @@ def from_seed(seed):
     if err != None:
         raise NkeysError
 
-    print("Public key using exe", publicKey)
-    os.remove(filepath)
-    return KeyPair(public_key=publicKey, private_key=seed.decode(), seed=seed, seedFile=tempDir + "/user.seed")
+    #print("Public key using exe", publicKey)
+    #os.remove(filepath)
+    return KeyPair(public_key=publicKey, private_key=seed.decode(), seed=seed.decode())
 
 def writeToFile(name:str, message:str):
     dirPath = tempDir + "/" + str(round(time.time()))
@@ -157,8 +157,6 @@ class KeyPair(object):
         :return: A KeyPair that can be used to sign and verify data.
         """
         self._seed = seed
-        self._seedFile = seedFile
-        #self._keys = keys
         self._public_key = public_key
         self._private_key = private_key
 
@@ -171,15 +169,15 @@ class KeyPair(object):
         :rtype bytes:
         :return: The raw bytes representing the signed data.
         """
-        inputFilepath = writeToFile("input.txt", input.decode())
+        #inputFilepath = writeToFile("input.txt", input.decode())
         nk = getNkeysBin()
 
-        command = nk + " -sign " + inputFilepath + " -inkey " + os.path.realpath(self._seedFile)
-        print(command)
+        command = nk + " -sign " + input.decode() + " -inkey " + self._seed
+
         p = subprocess.Popen(command, stdout=subprocess.PIPE)
         out, err = p.communicate()
         sign = out.decode().strip()
-        os.remove(inputFilepath)
+        #os.remove(inputFilepath)
         return base64.b64decode(sign)
 
     def verify(self, input, sig):
@@ -193,13 +191,9 @@ class KeyPair(object):
         inputFilepath = writeToFile("input.txt", input.decode())
         sigFilepath = writeToFile("signed.sig", base64.b64encode(sig).decode())
 
-
-
         nk = getNkeysBin()
-        print("nk:", nk)
+        command = os.path.realpath(nk) + " -verify " +  input.decode() + " -sig " + base64.b64encode(sig).decode() + " -inkey " + self._seed
 
-        command = os.path.realpath(nk) + " -verify " + inputFilepath + " -sigfile " + sigFilepath + " -inkey " + self._seedFile
-        print(command)
         p = subprocess.Popen(command, stdout=subprocess.PIPE)
         out, err = p.communicate()
         sign = out.decode().strip()
