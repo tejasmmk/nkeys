@@ -19,6 +19,7 @@ import os
 import sys
 import subprocess
 import platform
+import time
 
 tempDir = tempfile.gettempdir()
 
@@ -46,10 +47,8 @@ PREFIX_BYTE_USER     = 20 << 3    # Base32-encodes to 'U...'
 
 def from_seed(seed):
     nk = getNkeysBin()
-    f = open(tempDir + "/user.seed", "w")
-    f.write(seed.decode())
-    f.close()
-    command = nk + " -inkey " + os.path.realpath(tempDir + "/user.seed") + " -pubout"
+    filepath = writeToFile("user.seed", seed.decode())
+    command = nk + " -inkey " + filepath + " -pubout"
     print(command)
     p = subprocess.Popen(command, stdout=subprocess.PIPE)
     out, err = p.communicate()
@@ -60,8 +59,17 @@ def from_seed(seed):
         raise NkeysError
 
     print("Public key using exe", publicKey)
+    os.remove(filepath)
     return KeyPair(public_key=publicKey, private_key=seed.decode(), seed=seed, seedFile=tempDir + "/user.seed")
 
+def writeToFile(name:str, message:str):
+    dirPath = tempDir + "/" + str(round(time.time()))
+    path = os.path.realpath(dirPath + "/" + name)
+    os.makedirs(dirPath, exist_ok=True)
+    f = open(path, "w")
+    f.write(message)
+    f.close()
+    return path
 
 def getNkeysBin():
     from pathlib import Path
@@ -163,18 +171,15 @@ class KeyPair(object):
         :rtype bytes:
         :return: The raw bytes representing the signed data.
         """
-        f = open(tempDir + "/input.txt", "w")
-        f.write(input.decode())
-        f.close()
-
+        inputFilepath = writeToFile("input.txt", input.decode())
         nk = getNkeysBin()
 
-        command = nk + " -sign " + os.path.realpath(
-            tempDir + "/input.txt") + " -inkey " + os.path.realpath(self._seedFile)
+        command = nk + " -sign " + inputFilepath + " -inkey " + os.path.realpath(self._seedFile)
         print(command)
         p = subprocess.Popen(command, stdout=subprocess.PIPE)
         out, err = p.communicate()
         sign = out.decode().strip()
+        os.remove(inputFilepath)
         return base64.b64decode(sign)
 
     def verify(self, input, sig):
@@ -185,23 +190,21 @@ class KeyPair(object):
         :rtype bool:
         :return: boolean expressing that the signature is valid.
         """
-        f = open(tempDir + "/input.txt", "w")
-        f.write(input.decode())
-        f.close()
+        inputFilepath = writeToFile("input.txt", input.decode())
+        sigFilepath = writeToFile("signed.sig", base64.b64encode(sig).decode())
 
-        f = open(tempDir + "/signed.sig", "w")
-        f.write(base64.b64encode(sig).decode())
-        f.close()
+
 
         nk = getNkeysBin()
         print("nk:", nk)
 
-        command = os.path.realpath(nk) + " -verify " + os.path.realpath(
-            tempDir + "/input.txt") + " -sigfile " + os.path.realpath(tempDir + "/signed.sig") + " -inkey " + self._seedFile
+        command = os.path.realpath(nk) + " -verify " + inputFilepath + " -sigfile " + sigFilepath + " -inkey " + self._seedFile
         print(command)
         p = subprocess.Popen(command, stdout=subprocess.PIPE)
         out, err = p.communicate()
         sign = out.decode().strip()
+        os.remove(inputFilepath)
+        os.remove(sigFilepath)
         if sign == "Verified OK":
             return True
         raise ErrInvalidSignature
