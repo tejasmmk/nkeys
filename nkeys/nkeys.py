@@ -48,6 +48,8 @@ PREFIX_BYTE_USER     = 20 << 3    # Base32-encodes to 'U...'
 def from_seed(seed):
     nk = getNkeysBin()
     #filepath = writeToFile("user.seed", seed.decode())
+    if seed.decode() == "":
+        raise ErrInvalidSeed
     command = nk + " -inkey " + seed.decode() + " -pubout"
 
     p = subprocess.Popen(command, stdout=subprocess.PIPE)
@@ -60,7 +62,7 @@ def from_seed(seed):
 
     #print("Public key using exe", publicKey)
     #os.remove(filepath)
-    return KeyPair(public_key=publicKey, private_key=seed.decode(), seed=seed.decode())
+    return KeyPair(public_key=publicKey, private_key=seed.decode(), seed=seed)
 
 def writeToFile(name:str, message:str):
     dirPath = tempDir + "/" + str(round(time.time()))
@@ -172,7 +174,7 @@ class KeyPair(object):
         #inputFilepath = writeToFile("input.txt", input.decode())
         nk = getNkeysBin()
 
-        command = nk + " -sign " + input.decode() + " -inkey " + self._seed
+        command = nk + " -sign " + input.decode() + " -inkey " + self._seed.decode()
 
         p = subprocess.Popen(command, stdout=subprocess.PIPE)
         out, err = p.communicate()
@@ -192,7 +194,7 @@ class KeyPair(object):
         sigFilepath = writeToFile("signed.sig", base64.b64encode(sig).decode())
 
         nk = getNkeysBin()
-        command = os.path.realpath(nk) + " -verify " +  input.decode() + " -sig " + base64.b64encode(sig).decode() + " -inkey " + self._seed
+        command = os.path.realpath(nk) + " -verify " +  input.decode() + " -sig " + base64.b64encode(sig).decode() + " -inkey " + self._seed.decode()
 
         p = subprocess.Popen(command, stdout=subprocess.PIPE)
         out, err = p.communicate()
