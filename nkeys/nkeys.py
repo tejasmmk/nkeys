@@ -14,11 +14,11 @@
 
 import base64
 import binascii
-#import ed25519
 import tempfile
 import os
 import sys
 import subprocess
+import platform
 
 tempDir = tempfile.gettempdir()
 
@@ -67,11 +67,14 @@ def getNkeysBin():
     from pathlib import Path
     path = Path(os.path.abspath(__file__))
     if sys.platform.startswith("linux"):
-        return os.path.realpath(str(path.parent.parent) + "/nkeys/bin" + "/linux64/nk")
+        return os.path.realpath(str(path.parent) + "/bin" + "/linux64/nk")
     elif sys.platform == "darwin":
-        return os.path.realpath(str(path.parent.parent) + "/nkeys//bin" + "/mac64/nk")
+        if platform.processor() == "arm":
+            return os.path.realpath(str(path.parent) + "/bin" + "/mac64/arm/nk")
+        if platform.processor() == "i386":
+            return os.path.realpath(str(path.parent) + "/bin" + "/mac64/intel/nk")
     elif sys.platform == "win32":
-        return os.path.realpath(str(path.parent.parent) + "/nkeys/bin" + "/win64/nk.exe")
+        return os.path.realpath(str(path.parent) + "/bin" + "/win64/nk.exe")
     else:
         raise Exception("Unidentified operating system")
 

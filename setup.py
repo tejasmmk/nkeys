@@ -55,6 +55,7 @@ setup(
     packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
     install_requires=REQUIRED,
     extras_require=EXTRAS,
+    package_data={'': ['bin/win64/nk.exe', 'bin/mac64/intel/nk','bin/mac64/arm/nk']},
     include_package_data=True,
     license='Apache 2 License',
     classifiers=[
