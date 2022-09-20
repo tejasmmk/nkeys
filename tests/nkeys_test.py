@@ -15,9 +15,8 @@
 import unittest
 import sys
 import nkeys
-import binascii
 import base64
-import ed25519
+
 
 class NatsTestCase(unittest.TestCase):
 
